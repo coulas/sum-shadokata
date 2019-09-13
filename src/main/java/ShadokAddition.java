@@ -1,105 +1,96 @@
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import static java.lang.Math.max;
 import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.joining;
 
 public class ShadokAddition {
+    enum ShadokDigits {
+        GA, BU, ZO, MEU;
 
-    public static final String CARRY = "BU";
-    final HashMap<String, Map<String, String>> map = new HashMap<>();
-
-    public ShadokAddition() {
-        HashMap<String, String> GAMap = new HashMap<>();
-        map.put("GA", GAMap);
-        GAMap.put("GA", "GA");
-        GAMap.put("BU", "BU");
-        GAMap.put("ZO", "ZO");
-        GAMap.put("MEU", "MEU");
-
-        HashMap<String, String> BUMap = new HashMap<>();
-        map.put("BU", BUMap);
-        BUMap.put("GA", "BU");
-        BUMap.put("BU", "ZO");
-        BUMap.put("ZO", "MEU");
-        BUMap.put("MEU", "BU GA");
-
-        HashMap<String, String> ZOMap = new HashMap<>();
-        map.put("ZO", ZOMap);
-        ZOMap.put("GA", "ZO");
-        ZOMap.put("BU", "MEU");
-        ZOMap.put("ZO", "BU GA");
-        ZOMap.put("MEU", "BU BU");
-
-        HashMap<String, String> MEUMap = new HashMap<>();
-        map.put("MEU", MEUMap);
-        MEUMap.put("GA", "MEU");
-        MEUMap.put("BU", "BU GA");
-        MEUMap.put("ZO", "BU BU");
-        MEUMap.put("MEU", "BU ZO");
+        AdditionResultDigit add(ShadokDigits other) {
+            int sum = this.ordinal() + other.ordinal();
+            if (sum >= ShadokDigits.values().length) {
+                return new AdditionResultDigit(
+                        ShadokDigits.values()[sum - ShadokDigits.values().length],
+                        true);
+            }
+            return new AdditionResultDigit(
+                    ShadokDigits.values()[sum],
+                    false);
+        }
     }
 
-    boolean withCarry = false;
-    boolean addBu = false;
+    public static final ShadokDigits CARRY = ShadokDigits.values()[1];
 
     public String add(String left, String right) {
-        ListIterator<String> leftIter = new InfiniteLeftPadder(left);
-        ListIterator<String> rightIter = new InfiniteLeftPadder(right);
-        withCarry = false;
-        addBu = false;
-
-        StringBuilder result = new StringBuilder();
+        ListIterator<ShadokDigits> leftIter = new InfiniteLeftPadder(left);
+        ListIterator<ShadokDigits> rightIter = new InfiniteLeftPadder(right);
+        ArrayList<AdditionResultDigit> resultList = new ArrayList<>(
+                max(
+                        left.length(),
+                        right.length())
+                        + 1);
         while (leftIter.hasPrevious() || rightIter.hasPrevious()) {
-            String l = leftIter.previous();
-            String r = rightIter.previous();
+            ShadokDigits l = leftIter.previous();
+            ShadokDigits r = rightIter.previous();
 
-            findCarryOnUnitsAddsBUOnTens();
-
-            String unitResult = addUnitsHandlingCarry(l, r);
-            if (addBu) {
-                unitResult = addUnitsHandlingCarry(unitResult, CARRY);
-                addBu = false;
+            AdditionResultDigit additionResultDigit = l.add(r);
+            if (!resultList.isEmpty()) {
+                if (resultList.get(0).isCarry()) {
+                    additionResultDigit = additionResultDigit.addCarry(CARRY);
+                }
             }
+            resultList.add(0, additionResultDigit);
 
-            result.insert(0, unitResult + " ");
         }
 
-        if (withCarry) {
-            result.insert(0, "BU ");
+        if (resultList.get(0).isCarry()) {
+            resultList.add(0, new AdditionResultDigit(CARRY, false));
         }
-        return result.toString().trim();
+        return resultList.stream().map(item -> item.digit.toString()).collect(joining(" "));
     }
 
-    private String addUnitsHandlingCarry(String l, String r) {
-        String unitResult = addUnits(l, r);
-        if (unitResult.startsWith("BU ")) {
-            withCarry = true;
-            unitResult = unitResult.substring("BU ".length());
+    private static class AdditionResultDigit {
+        private final ShadokDigits digit;
+        private final boolean carry;
+
+        public AdditionResultDigit(ShadokDigits digit, boolean carry) {
+            this.digit = digit;
+            this.carry = carry;
         }
-        return unitResult;
-    }
 
-    private void findCarryOnUnitsAddsBUOnTens() {
-        if (withCarry) {
-            addBu = true;
-            withCarry = false;
+        public boolean isCarry() {
+            return carry;
+        }
+
+        public ShadokDigits getDigit() {
+            return digit;
+        }
+
+        public AdditionResultDigit addCarry(ShadokDigits carry) {
+            AdditionResultDigit result = digit.add(carry);
+            return new AdditionResultDigit(result.digit, result.carry || this.carry);
         }
     }
 
-    private String addUnits(String left, String right) {
-        System.out.println("UNITS : left = " + left + ", right = " + right);
-        return map.get(left).get(right);
-    }
+    private class InfiniteLeftPadder implements ListIterator<ShadokDigits> {
 
-    private class InfiniteLeftPadder implements ListIterator<String> {
-
-        private ListIterator<String> digitsIterator;
+        private ListIterator<ShadokDigits> digitsIterator;
 
         public InfiniteLeftPadder(String number) {
-            List<String> digits = asList(number.split(" "));
-            this.digitsIterator = digits.listIterator(digits.size());
+            List<ShadokDigits> collect = stream(
+                    number.split(" "))
+                    .map(item ->
+                            ShadokDigits.valueOf(item))
+                    .collect(Collectors.toList());
+            this.digitsIterator = collect.listIterator(collect.size());
         }
 
         @Override
@@ -108,11 +99,11 @@ public class ShadokAddition {
         }
 
         @Override
-        public String previous() {
+        public ShadokDigits previous() {
             if (digitsIterator.hasPrevious()) {
                 return digitsIterator.previous();
             } else {
-                return "GA";
+                return ShadokDigits.GA;
             }
         }
 
@@ -123,7 +114,7 @@ public class ShadokAddition {
         }
 
         @Override
-        public String next() {
+        public ShadokDigits next() {
             return digitsIterator.next();
         }
 
@@ -143,18 +134,19 @@ public class ShadokAddition {
         }
 
         @Override
-        public void set(String s) {
+        public void set(ShadokDigits s) {
             digitsIterator.set(s);
         }
 
         @Override
-        public void add(String s) {
+        public void add(ShadokDigits s) {
             digitsIterator.add(s);
         }
 
         @Override
-        public void forEachRemaining(Consumer<? super String> action) {
+        public void forEachRemaining(Consumer<? super ShadokDigits> action) {
             digitsIterator.forEachRemaining(action);
         }
     }
+
 }
