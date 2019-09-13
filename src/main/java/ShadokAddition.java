@@ -8,7 +8,8 @@ import static java.util.Arrays.asList;
 
 public class ShadokAddition {
 
-    HashMap<String, Map<String, String>> map = new HashMap<>();
+    public static final String CARRY = "BU";
+    final HashMap<String, Map<String, String>> map = new HashMap<>();
 
     public ShadokAddition() {
         HashMap<String, String> GAMap = new HashMap<>();
@@ -40,43 +41,51 @@ public class ShadokAddition {
         MEUMap.put("MEU", "BU ZO");
     }
 
-    public String add(String left, String right) {
-        List<String> lefts = asList(left.split(" "));
-        ListIterator<String> leftIter = new InfiniteLeftPadder(lefts.listIterator(lefts.size()));
-        List<String> rights = asList(right.split(" "));
-        ListIterator<String> rightIter = new InfiniteLeftPadder(rights.listIterator(rights.size()));
+    boolean withCarry = false;
+    boolean addBu = false;
 
-        boolean withCarry = false;
-        boolean addBu = false;
+    public String add(String left, String right) {
+        ListIterator<String> leftIter = new InfiniteLeftPadder(left);
+        ListIterator<String> rightIter = new InfiniteLeftPadder(right);
+        withCarry = false;
+        addBu = false;
+
         StringBuilder result = new StringBuilder();
         while (leftIter.hasPrevious() || rightIter.hasPrevious()) {
             String l = leftIter.previous();
             String r = rightIter.previous();
-            if(withCarry) {
-                addBu=true;
-                withCarry = false;
-            }
-            String unitResult = addUnits(l, r);
-            if (unitResult.startsWith("BU ")) {
-                withCarry = true;
-                unitResult = unitResult.substring("BU ".length());
-            }
+
+            findCarryOnUnitsAddsBUOnTens();
+
+            String unitResult = addUnitsHandlingCarry(l, r);
             if (addBu) {
-                unitResult = addUnits(unitResult, "BU");
-                if (unitResult.startsWith("BU ")) {
-                    withCarry = true;
-                    unitResult = unitResult.substring("BU ".length());
-                }
-                addBu=false;
+                unitResult = addUnitsHandlingCarry(unitResult, CARRY);
+                addBu = false;
             }
 
             result.insert(0, unitResult + " ");
         }
 
-        if(withCarry) {
+        if (withCarry) {
             result.insert(0, "BU ");
         }
         return result.toString().trim();
+    }
+
+    private String addUnitsHandlingCarry(String l, String r) {
+        String unitResult = addUnits(l, r);
+        if (unitResult.startsWith("BU ")) {
+            withCarry = true;
+            unitResult = unitResult.substring("BU ".length());
+        }
+        return unitResult;
+    }
+
+    private void findCarryOnUnitsAddsBUOnTens() {
+        if (withCarry) {
+            addBu = true;
+            withCarry = false;
+        }
     }
 
     private String addUnits(String left, String right) {
@@ -86,21 +95,22 @@ public class ShadokAddition {
 
     private class InfiniteLeftPadder implements ListIterator<String> {
 
-        private ListIterator<String> stringListIterator;
+        private ListIterator<String> digitsIterator;
 
-        public InfiniteLeftPadder(ListIterator<String> stringListIterator) {
-            this.stringListIterator = stringListIterator;
+        public InfiniteLeftPadder(String number) {
+            List<String> digits = asList(number.split(" "));
+            this.digitsIterator = digits.listIterator(digits.size());
         }
 
         @Override
         public boolean hasPrevious() {
-            return stringListIterator.hasPrevious();
+            return digitsIterator.hasPrevious();
         }
 
         @Override
         public String previous() {
-            if (stringListIterator.hasPrevious()) {
-                return stringListIterator.previous();
+            if (digitsIterator.hasPrevious()) {
+                return digitsIterator.previous();
             } else {
                 return "GA";
             }
@@ -109,42 +119,42 @@ public class ShadokAddition {
         //// delegation boiler plate under this line
         @Override
         public boolean hasNext() {
-            return stringListIterator.hasNext();
+            return digitsIterator.hasNext();
         }
 
         @Override
         public String next() {
-            return stringListIterator.next();
+            return digitsIterator.next();
         }
 
         @Override
         public int nextIndex() {
-            return stringListIterator.nextIndex();
+            return digitsIterator.nextIndex();
         }
 
         @Override
         public int previousIndex() {
-            return stringListIterator.previousIndex();
+            return digitsIterator.previousIndex();
         }
 
         @Override
         public void remove() {
-            stringListIterator.remove();
+            digitsIterator.remove();
         }
 
         @Override
         public void set(String s) {
-            stringListIterator.set(s);
+            digitsIterator.set(s);
         }
 
         @Override
         public void add(String s) {
-            stringListIterator.add(s);
+            digitsIterator.add(s);
         }
 
         @Override
         public void forEachRemaining(Consumer<? super String> action) {
-            stringListIterator.forEachRemaining(action);
+            digitsIterator.forEachRemaining(action);
         }
     }
 }
