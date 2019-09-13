@@ -2,6 +2,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 
@@ -41,14 +42,14 @@ public class ShadokAddition {
 
     public String add(String left, String right) {
         List<String> lefts = asList(left.split(" "));
-        ListIterator<String> leftIter = lefts.listIterator(lefts.size());
+        ListIterator<String> leftIter = new InfiniteLeftPadder(lefts.listIterator(lefts.size()));
         List<String> rights = asList(right.split(" "));
-        ListIterator<String> rightIter = rights.listIterator(rights.size());
+        ListIterator<String> rightIter = new InfiniteLeftPadder(rights.listIterator(rights.size()));
 
         boolean withCarry = false;
         boolean addBu = false;
         StringBuilder result = new StringBuilder();
-        while (leftIter.hasPrevious() && rightIter.hasPrevious()) {
+        while (leftIter.hasPrevious() || rightIter.hasPrevious()) {
             String l = leftIter.previous();
             String r = rightIter.previous();
             if(withCarry) {
@@ -72,24 +73,6 @@ public class ShadokAddition {
             result.insert(0, unitResult + " ");
         }
 
-        while (leftIter.hasPrevious()) {
-            String l = leftIter.previous();
-            if (withCarry) {
-                l = addUnits(l, "BU");
-                withCarry=false;
-            }
-            result.insert(0, l + " ");
-        }
-
-        while (rightIter.hasPrevious()) {
-            String r = rightIter.previous();
-            if (withCarry) {
-                r = addUnits(r, "BU");
-                withCarry=false;
-            }
-            result.insert(0, r + " ");
-        }
-
         if(withCarry) {
             result.insert(0, "BU ");
         }
@@ -99,5 +82,69 @@ public class ShadokAddition {
     private String addUnits(String left, String right) {
         System.out.println("UNITS : left = " + left + ", right = " + right);
         return map.get(left).get(right);
+    }
+
+    private class InfiniteLeftPadder implements ListIterator<String> {
+
+        private ListIterator<String> stringListIterator;
+
+        public InfiniteLeftPadder(ListIterator<String> stringListIterator) {
+            this.stringListIterator = stringListIterator;
+        }
+
+        @Override
+        public boolean hasPrevious() {
+            return stringListIterator.hasPrevious();
+        }
+
+        @Override
+        public String previous() {
+            if (stringListIterator.hasPrevious()) {
+                return stringListIterator.previous();
+            } else {
+                return "GA";
+            }
+        }
+
+        //// delegation boiler plate under this line
+        @Override
+        public boolean hasNext() {
+            return stringListIterator.hasNext();
+        }
+
+        @Override
+        public String next() {
+            return stringListIterator.next();
+        }
+
+        @Override
+        public int nextIndex() {
+            return stringListIterator.nextIndex();
+        }
+
+        @Override
+        public int previousIndex() {
+            return stringListIterator.previousIndex();
+        }
+
+        @Override
+        public void remove() {
+            stringListIterator.remove();
+        }
+
+        @Override
+        public void set(String s) {
+            stringListIterator.set(s);
+        }
+
+        @Override
+        public void add(String s) {
+            stringListIterator.add(s);
+        }
+
+        @Override
+        public void forEachRemaining(Consumer<? super String> action) {
+            stringListIterator.forEachRemaining(action);
+        }
     }
 }
